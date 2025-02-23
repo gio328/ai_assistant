@@ -1,4 +1,5 @@
 import json
+from config import openai_instance as openai
 
 ticket_prices = {"london": "$799", "paris": "$899", "tokyo": "$1400", "berlin": "$499", "philippines": "$1300"}
 
@@ -14,19 +15,29 @@ price_function = {
     "description": """Get the price of a return ticket to the destination city. Call this whenever you need to know the ticket price, 
                     for example when a customer asks 'How much is a ticket to this city' """,
     "parameters": {
-        "destination_city": {
-            "type": "string",
-            "description": "The city that the customer wants to travel to"
+        "type": "object",
+        "properties": {
+            "destination_city": {
+                "type": "string",
+                "description": "The city that the customer wants to travel to"
+            }
         },
         "required": ["destination_city"],
         "additionalProperties": False
     }
 }
 
+
 # And this is included in a list of tools:
 tools = [{"type": "function", "function": price_function}]
 
 def handle_tool_call(message):
+    print(f'Handling tool call')
+    print('message:', message)
+    if message is None:
+        print("Error: Received None instead of a valid tool call message.")
+        return {"role": "assistant", "content": "Error processing tool request."}  # Return a safe response
+    
     tool_call = message.tool_calls[0]
     arguments = json.loads(tool_call.function.arguments)
     city = arguments.get('destination_city')
@@ -36,7 +47,9 @@ def handle_tool_call(message):
         "content": json.dumps({"destination_city": city,"price": price}),
         "tool_call_id": tool_call.id
     }
-    return response, city
+    return response
 
-# ticket_price = get_ticket_price("philippines")
-# print(f"Ticket price for Philippines: {ticket_price}")
+##########################################################################################
+
+
+

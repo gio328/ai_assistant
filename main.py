@@ -1,48 +1,36 @@
-import os
-from dotenv import load_dotenv
-from openai import OpenAI
 import gradio as gr
-import random
-import logging
 from tickets import tools, get_ticket_price, handle_tool_call
+from config import openai_instance as openai
 
-# Load environment variables from a .env file
-load_dotenv()
 
-#OpenAI
-openai_api_key = os.getenv('OPENAI_API_KEY')
-
-# Create an instance of the OpenAI class
-openai = OpenAI()
-
+model_use = 'gpt-4o-mini'
 system_prompt = "You are a helpful assistant."
 history = []    
 
 def message_gpt(message, history):
     messages = [{'role': 'system', 'content': system_prompt}] + history + [{'role': 'user', 'content': message}]
-    # Log the message and history
+
+    # Log incoming message and history
     print(f"Message: {message}")
     print(f"History: {history}")
 
-    stream = openai.chat.completions.create(
-        model="gpt-4o-mini",
+    response = openai.chat.completions.create(
+        model=model_use,
         messages=messages,
-        stream=True,
         tools=tools
     )
 
-    response = ""
-    for chunk in stream:
-        if chunk.choices[0].finish_reason == "tool_calls":  # Check if AI calls a tool
-            tool_call_message = chunk.choices[0].message
-            print("Tool Call Detected:", tool_call_message)
+    if response.choices[0].finish_reason=="tool_calls":
+        print("Tool calls detected:")
+        message = response.choices[0].message
+        print('Message:', message)
+        response = handle_tool_call(message)
+        messages.append(message)
+        messages.append(response)
+        response = openai.chat.completions.create(model=model_use, messages=messages)
 
-            # Handle the tool call
-            response, city = handle_tool_call(tool_call_message)
 
-        response += chunk.choices[0].delta.content or ''
-        yield response
-
+    return response.choices[0].message.content
 
 interface = gr.ChatInterface(
     fn=message_gpt, 
@@ -52,3 +40,19 @@ interface = gr.ChatInterface(
 )
 
 interface.launch()
+
+##########################################################################################
+# ChatCompletionChunk
+# ChatCompletionMessage(
+#     content=None, 
+#     refusal=None, 
+#     role='assistant', 
+#     audio=None, 
+#     function_call=None, 
+#     tool_calls=[ChatCompletionMessageToolCall(
+#                     id='call_XPPnEpqbuH9591fHC3NpXOcl', 
+#                     function=Function(arguments='{"destination_city":"Philippines"}', 
+#                     name='get_ticket_price'), 
+#                     type='function')
+#                     ]
+# )
