@@ -1,6 +1,7 @@
 import gradio as gr
 from tickets import tools, handle_tool_call
 from config import openai_instance as openai
+from talker import talker
 
 
 model_use = 'gpt-4o-mini'
@@ -27,8 +28,9 @@ def message_gpt(message, history):
         messages.append(response)
         response = openai.chat.completions.create(model=model_use, messages=messages)
 
-
-    return response.choices[0].message.content
+    response_content = response.choices[0].message.content
+    talker(response_content)
+    return response_content
 
 interface = gr.ChatInterface(
     fn=message_gpt, 
